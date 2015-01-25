@@ -1,0 +1,13 @@
+{
+  "name": "WaveGL",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "4.4.3",
+    "compression": "1.0.7",
+    "serve-favicon": "2.0.1"
+  }
+}
