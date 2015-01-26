@@ -10,5 +10,11 @@ Ext.define('WGL.view.KeyboardController', {
 			blackNotesColour: 'black',
 			hoverColour: '#f3e939'
 		});
+		this.keyboard.keyDown = function (note, frequency) {
+			this.getView().fireEvent('playNote', note, frequency);
+		}.bind(this);
+		this.keyboard.keyUp = function (note, frequency) {
+			this.getView().fireEvent('stopNote', note, frequency);
+		}.bind(this);
 	}
 });

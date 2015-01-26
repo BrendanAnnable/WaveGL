@@ -3,20 +3,20 @@ Ext.define('WGL.view.WaveGLController', {
 	alias: 'controller.WaveGLController',
 	audioContext: null,
 	statics: {
-		Note: {
-			C_4: 40, // 261.626
-			E_4: 44, // 329.628
-			G_4: 47, // 391.995
-			C_5: 52  // 523.251
+		Key: {
+			C4: 40, // 261.626
+			E4: 44, // 329.628
+			G4: 47, // 391.995
+			C5: 52  // 523.251
 		}
 	},
-	getFrequency: function (note) {
+	getFrequency: function (key) {
 		// http://en.wikipedia.org/wiki/Piano_key_frequencies
-		return Math.pow(Math.pow(2, 1 / 12), note - 49) * 440;
+		return 440 * Math.pow(2, (key - 49) / 12);
 	},
-	addNode: function (buffer, note) {
+	addNote: function (buffer, key) {
 		var channel = buffer.getChannelData(0);
-		var frequency = this.getFrequency(note);
+		var frequency = this.getFrequency(key);
 		for (var i = 0; i < channel.length; i++) {
 			// This is an OscillatorNode, but where is the fun in that? :)
 			channel[i] += Math.sin(i * frequency * 2 * Math.PI / buffer.sampleRate);
@@ -32,6 +32,12 @@ Ext.define('WGL.view.WaveGLController', {
 			}
 		}
 	},
+	onPlayNote: function (note, frequency) {
+		console.log('play', note, frequency);
+	},
+	onStopNote: function (note, frequency) {
+		console.log('stop', note, frequency);
+	},
 	init: function () {
 		// http://beausievers.com/synth/synthbasics/
 		var ctx = this.audioContext = new AudioContext();
@@ -40,10 +46,10 @@ Ext.define('WGL.view.WaveGLController', {
 		var buffer = ctx.createBuffer(1, length, sampleRate);
 		buffer.numNotes = 0;
 
-		this.addNode(buffer, this.self.Note.C_4);
-		this.addNode(buffer, this.self.Note.E_4);
-		this.addNode(buffer, this.self.Note.G_4);
-		this.addNode(buffer, this.self.Note.C_5);
+		this.addNote(buffer, this.self.Key.C4);
+		this.addNote(buffer, this.self.Key.E4);
+		this.addNote(buffer, this.self.Key.G4);
+		this.addNote(buffer, this.self.Key.C5);
 		this.normalize(buffer);
 
 		var source = ctx.createBufferSource();
@@ -55,6 +61,6 @@ Ext.define('WGL.view.WaveGLController', {
 		gainNode.connect(ctx.destination);
 
 		// play sound
-		source.start(0);
+		//source.start(0);
 	}
 });
