@@ -18,6 +18,7 @@ Ext.define('WGL.view.WaveGLController', {
 		var channel = buffer.getChannelData(0);
 		var frequency = this.getFrequency(note);
 		for (var i = 0; i < channel.length; i++) {
+			// This is an OscillatorNode, but where is the fun in that? :)
 			channel[i] += Math.sin(i * frequency * 2 * Math.PI / buffer.sampleRate);
 		}
 		channel.numNotes++;
@@ -32,6 +33,7 @@ Ext.define('WGL.view.WaveGLController', {
 		}
 	},
 	init: function () {
+		// http://beausievers.com/synth/synthbasics/
 		var ctx = this.audioContext = new AudioContext();
 		var sampleRate = ctx.sampleRate;
 		var length = sampleRate * 5;
