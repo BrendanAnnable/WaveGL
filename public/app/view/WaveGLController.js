@@ -22,7 +22,7 @@ Ext.define('WGL.view.WaveGLController', {
 		this.audioContext = new AudioContext();
 
 		var masterGain = this.masterGain = this.audioContext.createGain();
-		masterGain.gain.value = 0.5;
+		masterGain.gain.value = 0.1;
 		masterGain.connect(this.audioContext.destination);
 	},
 	initVisualiser: function () {
@@ -32,7 +32,8 @@ Ext.define('WGL.view.WaveGLController', {
 		this.masterGain.connect(analyser);
 		analyser.connect(ctx.destination);
 		analyser.fftSize = 2048;
-		analyser.buffer = new Uint8Array(analyser.fftSize);
+		analyser.smoothingTimeConstant = 0.2;
+		analyser.buffer = new Uint8Array(analyser.frequencyBinCount);
 
 		var view = this.getView();
 		var width = view.getWidth();
@@ -47,18 +48,26 @@ Ext.define('WGL.view.WaveGLController', {
 		var geometry = new THREE.PlaneBufferGeometry(width, height);
 		geometry.applyMatrix(new THREE.Matrix4().makeTranslation(width / 2, height / 2, 0));
 		var material = new THREE.ShaderMaterial({
+			uniforms: {
+				fft: {type: 't'}
+			},
 			vertexShader: [
+				"varying vec2 vuv;",
 				"void main() {",
+					"vuv = uv;",
 					"gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);",
 				"}"
 			].join("\n"),
 			fragmentShader: [
+				"uniform sampler2D fft;",
+				"varying vec2 vuv;",
 				"void main() {",
-					"gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);",
+					"float amp = texture2D(fft, vuv).r;",
+					"gl_FragColor = vec4(amp, 0.0, 0.0, 1.0);",
 				"}"
 			].join("\n")
 		});
-		var mesh = new THREE.Mesh(geometry, material);
+		var mesh = this.quad = new THREE.Mesh(geometry, material);
 		mesh.frustumCulling = false;
 		mesh.depthTest = false;
 		mesh.depthWrite = false;
@@ -108,6 +117,20 @@ Ext.define('WGL.view.WaveGLController', {
 		var analyser = this.analyser;
 		var buffer = analyser.buffer;
 		analyser.getByteFrequencyData(buffer);
+
+		var texture = this.quad.material.uniforms.fft.value;
+		if (!texture) {
+			var size = Math.sqrt(buffer.length);
+			texture = new THREE.DataTexture(buffer, size, size,
+				THREE.LuminanceFormat, THREE.UnsignedByteType, THREE.Texture.DEFAULT_MAPPING,
+				THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.LinearFilter
+			);
+			this.quad.material.uniforms.fft.value = texture;
+		}
+		else {
+			texture.image.data = buffer;
+		}
+		texture.needsUpdate = true;
 
 		this.renderer.render(this.scene, this.camera);
 	}

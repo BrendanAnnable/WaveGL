@@ -12,7 +12,7 @@ Ext.define('WGL.view.WaveGL', {
 		align: 'stretch'
 	},
 	listeners: {
-		afterrender: 'onAfterRender'
+		boxready: 'onAfterRender'
 	},
 	items: [{
 		xtype: 'container',
