@@ -21,6 +21,14 @@ Ext.define('WGL.view.WaveGLController', {
 		masterGain.connect(this.audioContext.destination);
 	},
 	initVisualiser: function () {
+		var ctx = this.audioContext;
+		var analyser = this.analyser = ctx.createAnalyser();
+		// shim analyser between master gain and destination
+		this.masterGain.connect(analyser);
+		analyser.connect(ctx.destination);
+		analyser.fftSize = 2048;
+		analyser.buffer = new Float32Array(analyser.fftSize);
+
 		requestAnimationFrame(this.visualise.bind(this));
 	},
 	playNote: function (note, frequency) {
@@ -59,6 +67,10 @@ Ext.define('WGL.view.WaveGLController', {
 	visualise: function (time) {
 		requestAnimationFrame(this.visualise.bind(this));
 
-		// TODO: FFT
+		var analyser = this.analyser;
+		var buffer = analyser.buffer;
+		analyser.getFloatFrequencyData(buffer);
+
+		// TODO: visualise the buffer!
 	}
 });
