@@ -19,11 +19,20 @@ Ext.define('WGL.view.WaveGLController', {
 		this.initVisualiser();
 	},
 	initAudio: function () {
-		this.audioContext = new AudioContext();
+		var ctx = this.audioContext = new AudioContext();
 
-		var masterGain = this.masterGain = this.audioContext.createGain();
+		var masterGain = this.masterGain = ctx.createGain();
 		masterGain.gain.value = 0.1;
-		masterGain.connect(this.audioContext.destination);
+		masterGain.connect(ctx.destination);
+
+		// This is purely created so that something is always playing, so that the FFT keeps updating
+		// analyser.getFloatFrequencyData doesn't modify the given buffer if nothing is playing
+		// i.e. Preferably shouldn't need this
+		var idle = ctx.createBufferSource();
+		idle.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+		idle.loop = true;
+		idle.connect(masterGain);
+		idle.start();
 	},
 	initVisualiser: function () {
 		var ctx = this.audioContext;
@@ -32,8 +41,8 @@ Ext.define('WGL.view.WaveGLController', {
 		this.masterGain.connect(analyser);
 		analyser.connect(ctx.destination);
 		analyser.fftSize = 2048;
-		analyser.smoothingTimeConstant = 0.2;
-		analyser.buffer = new Uint8Array(analyser.frequencyBinCount);
+		analyser.smoothingTimeConstant = 0.8;
+		analyser.buffer = new Float32Array(analyser.frequencyBinCount);
 
 		var view = this.getView();
 		var width = view.getWidth();
@@ -45,7 +54,7 @@ Ext.define('WGL.view.WaveGLController', {
 		});
 		this.renderer.setSize(width, height);
 
-		var geometry = new THREE.PlaneBufferGeometry(width, height);
+		/*var geometry = new THREE.PlaneBufferGeometry(width, height);
 		geometry.applyMatrix(new THREE.Matrix4().makeTranslation(width / 2, height / 2, 0));
 		var material = new THREE.ShaderMaterial({
 			uniforms: {
@@ -68,11 +77,62 @@ Ext.define('WGL.view.WaveGLController', {
 			].join("\n")
 		});
 		var mesh = this.quad = new THREE.Mesh(geometry, material);
-		mesh.frustumCulling = false;
+		mesh.frustumCulled = false;
 		mesh.depthTest = false;
 		mesh.depthWrite = false;
+		this.scene.add(mesh);*/
 
-		this.scene.add(mesh);
+		geometry = new THREE.BufferGeometry();
+		var positions = new Float32Array(analyser.frequencyBinCount);
+		for (var i = 0; i < positions.length; i++) {
+			positions[i] = i * analyser.frequencyBinCount / width;
+		}
+		geometry.addAttribute('position', new THREE.BufferAttribute(positions, 1));
+		geometry.addAttribute('amplitude', new THREE.BufferAttribute(analyser.buffer, 1));
+		material = new THREE.RawShaderMaterial({
+			attributes: {
+				position: {type: 'f'},
+				amplitude: {type: 'f'}
+			},
+			uniforms: {
+				minDecibels: {type: 'f', value: analyser.minDecibels},
+				maxDecibels: {type: 'f', value: analyser.maxDecibels}
+			},
+			vertexShader: [
+				"precision highp float;",
+				"uniform mat4 projectionMatrix;",
+				"uniform mat4 modelViewMatrix;",
+				"uniform float minDecibels;",
+				"uniform float maxDecibels;",
+				"attribute float position;",
+				"attribute float amplitude;",
+				"attribute vec2 uv;",
+				"varying vec2 vuv;",
+				"varying float vamplitude;",
+				"varying float vposition;",
+				"void main() {",
+					"vuv = uv;",
+					"float normalisedAmp = (amplitude - minDecibels) * (maxDecibels - minDecibels);",
+					"vamplitude = normalisedAmp;",
+					"vposition = position;",
+					"gl_Position = projectionMatrix * modelViewMatrix * vec4(position * 50.0, normalisedAmp / 10.0 + 250.0, 0.0, 1.0);",
+				"}"
+			].join("\n"),
+			fragmentShader: [
+				"precision highp float;",
+				"varying float vamplitude;",
+				"varying float vposition;",
+				"void main() {",
+					"gl_FragColor = vec4(vamplitude / 5000.0, 0.0, vposition / 20.0, 1.0);",
+				"}"
+			].join("\n")
+		});
+		var line = this.line = new THREE.Line(geometry, material, THREE.LineStrip);
+		line.frustumCulled = false;
+		line.depthTest = false;
+		line.depthWrite = false;
+		this.scene.add(line);
+
 		this.camera.position.set(0,0,1);
 
 		requestAnimationFrame(this.visualise.bind(this));
@@ -84,8 +144,8 @@ Ext.define('WGL.view.WaveGLController', {
 		this.notes[note] = oscillator;
 	},
 	createOscillator: function (frequency) {
-		//return this.createOscillatorSimple(frequency);
-		return this.createOscillatorCustom(frequency);
+		return this.createOscillatorSimple(frequency);
+		//return this.createOscillatorCustom(frequency);
 	},
 	createOscillatorSimple: function (frequency) {
 		var ctx = this.audioContext;
@@ -115,10 +175,11 @@ Ext.define('WGL.view.WaveGLController', {
 		requestAnimationFrame(this.visualise.bind(this));
 
 		var analyser = this.analyser;
-		var buffer = analyser.buffer;
-		analyser.getByteFrequencyData(buffer);
+		var buffer = this.line.geometry.attributes.amplitude.array;
+		analyser.getFloatFrequencyData(buffer);
+		this.line.geometry.attributes.amplitude.needsUpdate = true;
 
-		var texture = this.quad.material.uniforms.fft.value;
+		/*var texture = this.quad.material.uniforms.fft.value;
 		if (!texture) {
 			var size = Math.sqrt(buffer.length);
 			texture = new THREE.DataTexture(buffer, size, size,
@@ -130,7 +191,7 @@ Ext.define('WGL.view.WaveGLController', {
 		else {
 			texture.image.data = buffer;
 		}
-		texture.needsUpdate = true;
+		texture.needsUpdate = true;*/
 
 		this.renderer.render(this.scene, this.camera);
 	}
