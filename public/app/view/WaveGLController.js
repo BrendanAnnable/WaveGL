@@ -6,10 +6,15 @@ Ext.define('WGL.view.WaveGLController', {
 	alias: 'controller.WaveGLController',
 	audioContext: null,
 	masterGain: null,
+	analyser: null,
+	scene: null,
+	camera: null,
+	renderer: null,
 	notes: null,
 	init: function () {
 		this.notes = {};
-
+	},
+	onAfterRender: function () {
 		this.initAudio();
 		this.initVisualiser();
 	},
@@ -27,7 +32,39 @@ Ext.define('WGL.view.WaveGLController', {
 		this.masterGain.connect(analyser);
 		analyser.connect(ctx.destination);
 		analyser.fftSize = 2048;
-		analyser.buffer = new Float32Array(analyser.fftSize);
+		analyser.buffer = new Uint8Array(analyser.fftSize);
+
+		var view = this.getView();
+		var width = view.getWidth();
+		var height = view.getHeight();
+		this.scene = new THREE.Scene();
+		this.camera = new THREE.OrthographicCamera(0, width, height, 0, 0.1, 100);
+		this.renderer = new THREE.WebGLRenderer({
+			canvas: this.lookupReference('visualiser').getEl().dom
+		});
+		this.renderer.setSize(width, height);
+
+		var geometry = new THREE.PlaneBufferGeometry(width, height);
+		geometry.applyMatrix(new THREE.Matrix4().makeTranslation(width / 2, height / 2, 0));
+		var material = new THREE.ShaderMaterial({
+			vertexShader: [
+				"void main() {",
+					"gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);",
+				"}"
+			].join("\n"),
+			fragmentShader: [
+				"void main() {",
+					"gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);",
+				"}"
+			].join("\n")
+		});
+		var mesh = new THREE.Mesh(geometry, material);
+		mesh.frustumCulling = false;
+		mesh.depthTest = false;
+		mesh.depthWrite = false;
+
+		this.scene.add(mesh);
+		this.camera.position.set(0,0,1);
 
 		requestAnimationFrame(this.visualise.bind(this));
 	},
@@ -52,6 +89,7 @@ Ext.define('WGL.view.WaveGLController', {
 		var ctx = this.audioContext;
 		var sampleRate = ctx.sampleRate;
 		var oscillator = ctx.createBufferSource();
+		// TODO: figure a solution for the rounding problem
 		var buffer = oscillator.buffer = ctx.createBuffer(1, Math.ceil(sampleRate / frequency), sampleRate);
 		var channel = buffer.getChannelData(0);
 		for (var i = 0; i < channel.length; i++) {
@@ -69,8 +107,8 @@ Ext.define('WGL.view.WaveGLController', {
 
 		var analyser = this.analyser;
 		var buffer = analyser.buffer;
-		analyser.getFloatFrequencyData(buffer);
+		analyser.getByteFrequencyData(buffer);
 
-		// TODO: visualise the buffer!
+		this.renderer.render(this.scene, this.camera);
 	}
 });

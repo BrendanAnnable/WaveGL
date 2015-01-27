@@ -2,7 +2,8 @@ Ext.define('WGL.view.WaveGL', {
 	extend: 'Ext.container.Container',
 	requires: [
 		'WGL.view.WaveGLController',
-		'WGL.view.Keyboard'
+		'WGL.view.Keyboard',
+		'Ext.layout.container.Fit'
 	],
 	alias: 'widget.wavegl',
 	controller: 'WaveGLController',
@@ -10,9 +11,13 @@ Ext.define('WGL.view.WaveGL', {
 		type: 'vbox',
 		align: 'stretch'
 	},
+	listeners: {
+		afterrender: 'onAfterRender'
+	},
 	items: [{
 		xtype: 'container',
 		layout: 'fit',
+		reference: 'visualiser',
 		autoEl: {
 			tag: 'canvas',
 			style: {
