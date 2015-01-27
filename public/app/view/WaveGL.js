@@ -25,8 +25,8 @@ Ext.define('WGL.view.WaveGL', {
 		layout: 'fit',
 		height: 200,
 		listeners: {
-			playNote: 'onPlayNote',
-			stopNote: 'onStopNote'
+			playNote: 'playNote',
+			stopNote: 'stopNote'
 		}
 	}]
 });
