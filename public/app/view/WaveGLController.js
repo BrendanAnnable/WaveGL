@@ -1,58 +1,64 @@
+/**
+ * http://beausievers.com/synth/synthbasics/
+ */
 Ext.define('WGL.view.WaveGLController', {
 	extend: 'Ext.app.ViewController',
 	alias: 'controller.WaveGLController',
 	audioContext: null,
-	statics: {
-		Note: {
-			C_4: 40, // 261.626
-			E_4: 44, // 329.628
-			G_4: 47, // 391.995
-			C_5: 52  // 523.251
-		}
-	},
-	getFrequency: function (note) {
-		// http://en.wikipedia.org/wiki/Piano_key_frequencies
-		return Math.pow(Math.pow(2, 1 / 12), note - 49) * 440;
-	},
-	addNode: function (buffer, note) {
-		var channel = buffer.getChannelData(0);
-		var frequency = this.getFrequency(note);
-		for (var i = 0; i < channel.length; i++) {
-			channel[i] += Math.sin(i * frequency * 2 * Math.PI / buffer.sampleRate);
-		}
-		channel.numNotes++;
-	},
-	normalize: function (buffer) {
-		var channel = buffer.getChannelData(0);
-		var numNotes = buffer.numNotes;
-		if (numNotes > 1) {
-			for (var i = 0; i < channel.length; i++) {
-				channel[i] /= numNotes;
-			}
-		}
-	},
+	masterGain: null,
+	notes: null,
 	init: function () {
-		var ctx = this.audioContext = new AudioContext();
+		this.notes = {};
+
+		this.initAudio();
+		this.initVisualiser();
+	},
+	initAudio: function () {
+		this.audioContext = new AudioContext();
+
+		var masterGain = this.masterGain = this.audioContext.createGain();
+		masterGain.gain.value = 0.5;
+		masterGain.connect(this.audioContext.destination);
+	},
+	initVisualiser: function () {
+		requestAnimationFrame(this.visualise.bind(this));
+	},
+	playNote: function (note, frequency) {
+		var oscillator = this.createOscillator(frequency);
+		oscillator.connect(this.masterGain);
+		oscillator.start();
+		this.notes[note] = oscillator;
+	},
+	createOscillator: function (frequency) {
+		//return this.createOscillatorSimple(frequency);
+		return this.createOscillatorCustom(frequency);
+	},
+	createOscillatorSimple: function (frequency) {
+		var ctx = this.audioContext;
+		var oscillator = ctx.createOscillator();
+		oscillator.type = 'sine';
+		oscillator.frequency.value = frequency;
+		return oscillator;
+	},
+	createOscillatorCustom: function (frequency) {
+		var ctx = this.audioContext;
 		var sampleRate = ctx.sampleRate;
-		var length = sampleRate * 5;
-		var buffer = ctx.createBuffer(1, length, sampleRate);
-		buffer.numNotes = 0;
+		var oscillator = ctx.createBufferSource();
+		var buffer = oscillator.buffer = ctx.createBuffer(1, Math.ceil(sampleRate / frequency), sampleRate);
+		var channel = buffer.getChannelData(0);
+		for (var i = 0; i < channel.length; i++) {
+			channel[i] = Math.sin(i * frequency * 2 * Math.PI / sampleRate);
+		}
+		oscillator.loop = true;
+		return oscillator;
+	},
+	stopNote: function (note, frequency) {
+		this.notes[note].stop();
+		delete this.notes[note];
+	},
+	visualise: function (time) {
+		requestAnimationFrame(this.visualise.bind(this));
 
-		this.addNode(buffer, this.self.Note.C_4);
-		this.addNode(buffer, this.self.Note.E_4);
-		this.addNode(buffer, this.self.Note.G_4);
-		this.addNode(buffer, this.self.Note.C_5);
-		this.normalize(buffer);
-
-		var source = ctx.createBufferSource();
-		source.buffer = buffer;
-
-		var gainNode = ctx.createGain();
-		gainNode.gain.value = 0.05;
-		source.connect(gainNode);
-		gainNode.connect(ctx.destination);
-
-		// play sound
-		source.start(0);
+		// TODO: FFT
 	}
 });

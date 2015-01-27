@@ -18,6 +18,7 @@
   "dependencies": {
     "threejs": "r70",
     "extjs": "~5.0",
-    "bluebird": "~2.3.11"
+    "bluebird": "~2.3.11",
+    "keyboard": "stuartmemo/qwerty-hancock"
   }
 }
