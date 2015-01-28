@@ -5,7 +5,7 @@ Ext.define('WGL.view.KeyboardController', {
 	onBoxReady: function () {
 		this.keyboard = new QwertyHancock({
 			id: this.getView().getId(),
-			octaves: 2,
+			octaves: 4,
 			whiteNotesColour: 'white',
 			blackNotesColour: 'black',
 			hoverColour: '#f3e939'

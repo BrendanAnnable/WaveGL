@@ -112,10 +112,10 @@ Ext.define('WGL.view.WaveGLController', {
 				"varying float vposition;",
 				"void main() {",
 					"vuv = uv;",
-					"float normalisedAmp = (amplitude - minDecibels) * (maxDecibels - minDecibels);",
+					"float normalisedAmp = max(0.0, (amplitude - minDecibels) * (maxDecibels - minDecibels));",
 					"vamplitude = normalisedAmp;",
 					"vposition = position;",
-					"gl_Position = projectionMatrix * modelViewMatrix * vec4(position * 50.0, normalisedAmp / 10.0 + 250.0, 0.0, 1.0);",
+					"gl_Position = projectionMatrix * modelViewMatrix * vec4(position * 20.0, normalisedAmp / 10.0 + 250.0, 0.0, 1.0);",
 				"}"
 			].join("\n"),
 			fragmentShader: [
@@ -123,7 +123,7 @@ Ext.define('WGL.view.WaveGLController', {
 				"varying float vamplitude;",
 				"varying float vposition;",
 				"void main() {",
-					"gl_FragColor = vec4(vamplitude / 5000.0, 0.0, vposition / 20.0, 1.0);",
+					"gl_FragColor = vec4(vamplitude / 5000.0, vposition / 90.0, 1.0 - vposition / 90.0, 1.0);",
 				"}"
 			].join("\n")
 		});
