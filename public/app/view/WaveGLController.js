@@ -22,7 +22,7 @@ Ext.define('WGL.view.WaveGLController', {
 		var ctx = this.audioContext = new AudioContext();
 
 		var masterGain = this.masterGain = ctx.createGain();
-		masterGain.gain.value = 0.1;
+		masterGain.gain.value = 0.01;
 		masterGain.connect(ctx.destination);
 
 		// This is purely created so that something is always playing, so that the FFT keeps updating
@@ -41,8 +41,9 @@ Ext.define('WGL.view.WaveGLController', {
 		this.masterGain.connect(analyser);
 		analyser.connect(ctx.destination);
 		analyser.fftSize = 2048;
-		analyser.smoothingTimeConstant = 0.8;
+		analyser.smoothingTimeConstant = 0.0;
 		analyser.buffer = new Float32Array(analyser.frequencyBinCount);
+		analyser.buffer2 = new Float32Array(analyser.frequencyBinCount);
 
 		var view = this.getView();
 		var width = view.getWidth();
@@ -82,14 +83,14 @@ Ext.define('WGL.view.WaveGLController', {
 		mesh.depthWrite = false;
 		this.scene.add(mesh);*/
 
-		geometry = new THREE.BufferGeometry();
+		var geometry = new THREE.BufferGeometry();
 		var positions = new Float32Array(analyser.frequencyBinCount);
 		for (var i = 0; i < positions.length; i++) {
 			positions[i] = i * analyser.frequencyBinCount / width;
 		}
 		geometry.addAttribute('position', new THREE.BufferAttribute(positions, 1));
 		geometry.addAttribute('amplitude', new THREE.BufferAttribute(analyser.buffer, 1));
-		material = new THREE.RawShaderMaterial({
+		var material = new THREE.RawShaderMaterial({
 			attributes: {
 				position: {type: 'f'},
 				amplitude: {type: 'f'}
@@ -128,6 +129,50 @@ Ext.define('WGL.view.WaveGLController', {
 			].join("\n")
 		});
 		var line = this.line = new THREE.Line(geometry, material, THREE.LineStrip);
+		line.frustumCulled = false;
+		line.depthTest = false;
+		line.depthWrite = false;
+		this.scene.add(line);
+
+		geometry = new THREE.BufferGeometry();
+		positions = new Float32Array(analyser.frequencyBinCount);
+		for (var i = 0; i < positions.length; i++) {
+			positions[i] = i * width / analyser.frequencyBinCount;
+		}
+		geometry.addAttribute('position', new THREE.BufferAttribute(positions, 1));
+		geometry.addAttribute('amplitude', new THREE.BufferAttribute(analyser.buffer2, 1));
+		material = new THREE.RawShaderMaterial({
+			attributes: {
+				position: {type: 'f'},
+				amplitude: {type: 'f'}
+			},
+			vertexShader: [
+				"precision highp float;",
+				"uniform mat4 projectionMatrix;",
+				"uniform mat4 modelViewMatrix;",
+				"attribute float position;",
+				"attribute float amplitude;",
+				"attribute vec2 uv;",
+				"varying vec2 vuv;",
+				"varying float vamplitude;",
+				"varying float vposition;",
+				"void main() {",
+					"vuv = uv;",
+					"vamplitude = amplitude;",
+					"vposition = position;",
+					"gl_Position = projectionMatrix * modelViewMatrix * vec4(position * 3.0, 4000.0 * amplitude + 500.0, 0.0, 1.0);",
+				"}"
+			].join("\n"),
+			fragmentShader: [
+				"precision highp float;",
+				"varying float vamplitude;",
+				"varying float vposition;",
+				"void main() {",
+					"gl_FragColor = vec4(vamplitude, vposition / 200.0, 1.0 - vposition / 200.0, 1.0);",
+				"}"
+			].join("\n")
+		});
+		line = this.line2 = new THREE.Line(geometry, material, THREE.LineStrip);
 		line.frustumCulled = false;
 		line.depthTest = false;
 		line.depthWrite = false;
@@ -178,6 +223,10 @@ Ext.define('WGL.view.WaveGLController', {
 		var buffer = this.line.geometry.attributes.amplitude.array;
 		analyser.getFloatFrequencyData(buffer);
 		this.line.geometry.attributes.amplitude.needsUpdate = true;
+
+		var buffer2 = this.line2.geometry.attributes.amplitude.array;
+		analyser.getFloatTimeDomainData(buffer2);
+		this.line2.geometry.attributes.amplitude.needsUpdate = true;
 
 		/*var texture = this.quad.material.uniforms.fft.value;
 		if (!texture) {
