@@ -6,7 +6,7 @@ var compression = require('compression');
 var app = express();
 var server = http.Server(app);
 
-app.set('port', 8888);
+app.set('port', process.env.PORT || 8888);
 app.use(favicon(__dirname + '/public/favicon.ico'));
 app.use(compression());
 app.use(express.static(__dirname + '/public'));
