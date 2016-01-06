@@ -8,3 +8,6 @@ The Web Audio API offers some great features for synthesizing and visualising au
 4. npm install
 5. bower install
 6. npm start
+
+# Demo
+[http://wavegl.herokuapp.com/](http://wavegl.herokuapp.com/)
